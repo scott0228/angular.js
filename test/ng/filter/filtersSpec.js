@@ -148,6 +148,76 @@ describe('filters', function() {
       num = formatNumber(879832749374983274928, pattern, ',', '.', 32);
       expect(num).toBe('879,832,749,374,983,200,000.00000000000000000000000000000000');
     });
+
+    // CVE-2022-25844: Test ReDoS vulnerability fix
+    it('should sanitize malicious pattern strings to prevent ReDoS attacks (CVE-2022-25844)', function() {
+      // Test malicious posPre with function calls
+      var maliciousPattern = {
+        minInt: 1,
+        minFrac: 0,
+        maxFrac: 3,
+        posPre: 'evil_repeat(999999)_prefix',
+        posSuf: '',
+        negPre: '-',
+        negSuf: '',
+        gSize: 3,
+        lgSize: 3
+      };
+      
+      var start = Date.now();
+      var result = formatNumber(1234, maliciousPattern, ',', '.', 2);
+      var duration = Date.now() - start;
+      
+      // Should complete quickly (not hang due to ReDoS)
+      expect(duration).toBeLessThan(100);
+      // Should not contain the original malicious pattern
+      expect(result.indexOf('repeat(999999)')).toBe(-1);
+      // Should still format the number correctly
+      expect(result).toContain('1,234');
+    });
+
+    it('should truncate extremely long pattern strings to prevent ReDoS attacks', function() {
+      var longPattern = {
+        minInt: 1,
+        minFrac: 0,
+        maxFrac: 3,
+        posPre: 'A'.repeat(1000), // Very long string
+        posSuf: '',
+        negPre: '-',
+        negSuf: '',
+        gSize: 3,
+        lgSize: 3
+      };
+      
+      var start = Date.now();
+      var result = formatNumber(1234, longPattern, ',', '.', 2);
+      var duration = Date.now() - start;
+      
+      // Should complete quickly
+      expect(duration).toBeLessThan(100);
+      // Result should not be excessively long
+      expect(result.length).toBeLessThan(200);
+    });
+
+    it('should handle non-string pattern values gracefully', function() {
+      var invalidPattern = {
+        minInt: 1,
+        minFrac: 0,
+        maxFrac: 3,
+        posPre: null,
+        posSuf: undefined,
+        negPre: 123,
+        negSuf: {},
+        gSize: 3,
+        lgSize: 3
+      };
+      
+      // Should not throw error and should format number
+      expect(function() {
+        var result = formatNumber(1234, invalidPattern, ',', '.', 2);
+        expect(result).toContain('1,234');
+      }).not.toThrow();
+    });
   });
 
   describe('currency', function() {
