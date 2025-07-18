@@ -1260,10 +1260,10 @@ describe('input', function() {
       var inputElm = helper.compileInput('<input type="datetime-local" ng-model="halfSecondToNextYear"/>');
 
       $rootScope.$apply(function() {
-        $rootScope.halfSecondToNextYear = new Date(2013, 11, 31, 23, 59, 59, 500);
+        $rootScope.halfSecondToNextYear = new Date(2013, 11, 31, 23, 59, 59, 501);
       });
 
-      expect(inputElm.val()).toBe('2013-12-31T23:59:59.500');
+      expect(inputElm.val()).toBe('2013-12-31T23:59:59.501');
     });
 
 
@@ -1475,9 +1475,9 @@ describe('input', function() {
       ctrl.$overrideModelOptions({timeSecondsFormat: 'ss.sss'});
 
       $rootScope.$apply(function() {
-        $rootScope.time = new Date(1970, 0, 1, 15, 41, 50, 50);
+        $rootScope.time = new Date(1970, 0, 1, 15, 41, 50, 52);
       });
-      expect(inputElm.val()).toBe('1970-01-01T15:41:50.050');
+      expect(inputElm.val()).toBe('1970-01-01T15:41:50.052');
     });
 
 
@@ -1487,16 +1487,16 @@ describe('input', function() {
       );
 
       $rootScope.$apply(function() {
-        $rootScope.threeFortyOnePm = new Date(1970, 0, 1, 15, 41, 50, 500);
+        $rootScope.threeFortyOnePm = new Date(1970, 0, 1, 15, 41, 50, 503);
       });
 
-      expect(inputElm.val()).toBe('1970-01-01T15:41:50.500');
+      expect(inputElm.val()).toBe('1970-01-01T15:41:50.503');
 
       $rootScope.$apply(function() {
-        $rootScope.threeFortyOnePm = new Date(1970, 0, 1, 15, 41, 0, 500);
+        $rootScope.threeFortyOnePm = new Date(1970, 0, 1, 15, 41, 0, 501);
       });
 
-      expect(inputElm.val()).toBe('1970-01-01T15:41:00.500');
+      expect(inputElm.val()).toBe('1970-01-01T15:41:00.501');
 
       $rootScope.$apply(function() {
         $rootScope.threeFortyOnePm = new Date(1970, 0, 1, 15, 41, 50, 0);
@@ -1850,9 +1850,9 @@ describe('input', function() {
       ctrl.$overrideModelOptions({timeSecondsFormat: 'ss.sss'});
 
       $rootScope.$apply(function() {
-        $rootScope.time = new Date(1970, 0, 1, 15, 41, 50, 50);
+        $rootScope.time = new Date(1970, 0, 1, 15, 41, 50, 51);
       });
-      expect(inputElm.val()).toBe('15:41:50.050');
+      expect(inputElm.val()).toBe('15:41:50.051');
     });
 
 
@@ -1862,10 +1862,10 @@ describe('input', function() {
       );
 
       $rootScope.$apply(function() {
-        $rootScope.threeFortyOnePm = new Date(1970, 0, 1, 15, 41, 50, 500);
+        $rootScope.threeFortyOnePm = new Date(1970, 0, 1, 15, 41, 50, 502);
       });
 
-      expect(inputElm.val()).toBe('15:41:50.500');
+      expect(inputElm.val()).toBe('15:41:50.502');
 
       $rootScope.$apply(function() {
         $rootScope.threeFortyOnePm = new Date(1970, 0, 1, 15, 41, 0, 500);
