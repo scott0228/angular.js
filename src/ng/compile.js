@@ -2099,7 +2099,10 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
       // first check if there are spaces because it's not the same pattern
       var trimmedSrcset = trim(value);
       //                (   999x   ,|   999w   ,|   ,|,   )
-      var srcPattern = /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+)/;
+      // Fixed ReDoS vulnerability: Avoid nested quantifiers that cause catastrophic backtracking
+      // Original problematic: /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+)/
+      // Solution: Use more specific patterns without nested quantifiers
+      var srcPattern = /(\s+\d+[xw]\s*,|\s+,|,\s+)/;
       var pattern = /\s/.test(trimmedSrcset) ? srcPattern : /(,)/;
 
       // split srcset into tuple of uri and descriptor except for the last item

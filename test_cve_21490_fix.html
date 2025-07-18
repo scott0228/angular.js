@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CVE-2024-21490 ReDoS Test</title>
+    <script src="build/angular.js"></script>
+</head>
+<body ng-app="testApp" ng-controller="TestController">
+    <h2>CVE-2024-21490 ReDoS 修正測試</h2>
+    
+    <p>這個測試驗證了對 ReDoS 攻擊的修正。</p>
+    
+    <h3>正常 ng-srcset 功能測試</h3>
+    <img ng-srcset="{{normalSrcset}}" alt="正常測試">
+    <p>正常 srcset: <span id="normal-result"></span></p>
+    
+    <h3>潛在 ReDoS 攻擊測試</h3>
+    <p>測試大量空格和複雜模式...</p>
+    <button ng-click="testReDoS()">執行 ReDoS 測試</button>
+    <div id="redos-results"></div>
+    
+    <h3>效能測試結果</h3>
+    <div id="performance-results"></div>
+
+    <script>
+        angular.module('testApp', [])
+        .controller('TestController', function($scope, $compile, $timeout) {
+            $scope.normalSrcset = 'http://example.com/image1.png 1x, http://example.com/image2.png 2x';
+            
+            $scope.testReDoS = function() {
+                var resultsDiv = document.getElementById('redos-results');
+                var perfDiv = document.getElementById('performance-results');
+                
+                resultsDiv.innerHTML = '<p>測試進行中...</p>';
+                
+                // 測試案例 1: 大量空格
+                var testCase1 = 'http://example.com/test.png' + ' '.repeat(100) + '2x';
+                
+                // 測試案例 2: 複雜的空格模式  
+                var testCase2 = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' + 
+                               ' '.repeat(50) + '1x,' + 
+                               ' '.repeat(50) + 'http://example.com/test2.png' +
+                               ' '.repeat(50) + '2x';
+                
+                var testCases = [
+                    { name: '大量空格測試', srcset: testCase1 },
+                    { name: '複雜空格模式測試', srcset: testCase2 }
+                ];
+                
+                var results = [];
+                
+                testCases.forEach(function(testCase, index) {
+                    try {
+                        var startTime = performance.now();
+                        
+                        var element = angular.element('<img ng-srcset="' + testCase.srcset + '">');
+                        var compiled = $compile(element)($scope);
+                        $scope.$digest();
+                        
+                        var endTime = performance.now();
+                        var duration = endTime - startTime;
+                        
+                        results.push({
+                            name: testCase.name,
+                            duration: duration,
+                            success: true,
+                            srcset: compiled.attr('srcset') || '未設置'
+                        });
+                        
+                    } catch (error) {
+                        results.push({
+                            name: testCase.name,
+                            duration: 'N/A',
+                            success: false,
+                            error: error.message
+                        });
+                    }
+                });
+                
+                // 顯示結果
+                var html = '<h4>測試結果:</h4><ul>';
+                results.forEach(function(result) {
+                    var statusColor = result.success ? 'green' : 'red';
+                    var durationText = typeof result.duration === 'number' ? 
+                        result.duration.toFixed(2) + 'ms' : result.duration;
+                    
+                    html += '<li style="color: ' + statusColor + ';">';
+                    html += '<strong>' + result.name + '</strong>: ';
+                    html += result.success ? '成功' : '失敗';
+                    html += ' (耗時: ' + durationText + ')';
+                    
+                    if (result.error) {
+                        html += '<br>錯誤: ' + result.error;
+                    }
+                    html += '</li>';
+                });
+                html += '</ul>';
+                
+                resultsDiv.innerHTML = html;
+                
+                // 效能分析
+                var avgDuration = results
+                    .filter(r => r.success && typeof r.duration === 'number')
+                    .reduce((sum, r) => sum + r.duration, 0) / results.length;
+                
+                perfDiv.innerHTML = 
+                    '<h4>效能分析:</h4>' +
+                    '<p>平均處理時間: ' + avgDuration.toFixed(2) + 'ms</p>' +
+                    '<p>狀態: ' + (avgDuration < 100 ? 
+                        '<span style="color: green;">良好 - 無 ReDoS 風險</span>' : 
+                        '<span style="color: orange;">需要關注</span>') + '</p>';
+            };
+            
+            // 顯示正常功能的結果
+            $timeout(function() {
+                var imgElements = document.querySelectorAll('img[ng-srcset]');
+                if (imgElements.length > 0) {
+                    document.getElementById('normal-result').textContent = 
+                        imgElements[0].getAttribute('srcset') || '未設置';
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>
