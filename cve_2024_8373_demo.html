@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html ng-app="testApp">
+<head>
+    <title>CVE-2024-8373 Fix Demo</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .vulnerable { background-color: #ffe6e6; }
+        .fixed { background-color: #e6ffe6; }
+        .malicious { color: red; }
+        .trusted { color: green; }
+        img, source { display: block; margin: 5px 0; }
+        .srcset-value { font-family: monospace; font-size: 12px; background: #f0f0f0; padding: 5px; }
+    </style>
+</head>
+<body ng-controller="TestController">
+    <h1>CVE-2024-8373 修復演示</h1>
+    
+    <div class="section">
+        <h2>設定的圖片來源限制</h2>
+        <p>此演示配置為只允許來自 <code>angularjs.org</code> 的圖片。</p>
+    </div>
+
+    <div class="section vulnerable">
+        <h2>修復前的行為（現已修復）</h2>
+        <p>在修復前，以下方式會繞過圖片來源限制：</p>
+        
+        <h3>ng-attr-srcset 漏洞測試</h3>
+        <picture>
+            <source ng-attr-srcset="{{maliciousUrl}}" type="image/jpeg" />
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjUwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjEwIiB5PSIzMCI+VGVzdCBJbWFnZTwvdGV4dD48L3N2Zz4=" alt="測試圖片" />
+        </picture>
+        <div class="srcset-value">實際 srcset 值: {{getActualSrcset('source')}}</div>
+        
+        <h3>插值漏洞測試</h3>
+        <picture>
+            <source srcset="{{maliciousUrl}}" type="image/jpeg" />
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjUwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjEwIiB5PSIzMCI+VGVzdCBJbWFnZTwvdGV4dD48L3N2Zz4=" alt="測試圖片" />
+        </picture>
+        <div class="srcset-value">實際 srcset 值: {{getActualSrcset('source')}}</div>
+    </div>
+
+    <div class="section fixed">
+        <h2>修復後的行為</h2>
+        <p>現在所有 srcset 值都會經過適當的清理：</p>
+        
+        <h3>惡意 URL（被清理）</h3>
+        <img ng-attr-srcset="{{maliciousUrl}}" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjUwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjEwIiB5PSIzMCI+TWFsaWNpb3VzPC90ZXh0Pjwvc3ZnPg==" alt="惡意圖片" />
+        <div class="srcset-value malicious">惡意 URL srcset: {{getActualSrcset('img')}}</div>
+        
+        <h3>受信任 URL（被允許）</h3>
+        <img ng-attr-srcset="{{trustedUrl}}" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjUwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjEwIiB5PSIzMCI+VHJ1c3RlZDwvdGV4dD48L3N2Zz4=" alt="受信任圖片" />
+        <div class="srcset-value trusted">受信任 URL srcset: {{getActualSrcset('img')}}</div>
+        
+        <h3>複雜 srcset（混合）</h3>
+        <img ng-attr-srcset="{{complexSrcset}}" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjUwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjEwIiB5PSIzMCI+Q29tcGxleDwvdGV4dD48L3N2Zz4=" alt="複雜圖片" />
+        <div class="srcset-value">複雜 srcset: {{getActualSrcset('img')}}</div>
+
+        <h3>Data URL 注入（被阻止）</h3>
+        <img ng-attr-srcset="{{dataUrl}}" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjUwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjEwIiB5PSIzMCI+RGF0YSBVUkw8L3RleHQ+PC9zdmc+" alt="Data URL 圖片" />
+        <div class="srcset-value malicious">Data URL srcset: {{getActualSrcset('img')}}</div>
+    </div>
+
+    <div class="section">
+        <h2>正常的 ng-srcset 指令（應該繼續工作）</h2>
+        <img ng-srcset="maliciousUrl" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjUwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjEwIiB5PSIzMCI+bmctc3Jjc2V0PC90ZXh0Pjwvc3ZnPg==" alt="ng-srcset 測試" />
+        <div class="srcset-value">ng-srcset 值: {{getActualSrcset('img')}}</div>
+    </div>
+
+    <script>
+        angular.module('testApp', [])
+        .config(['$compileProvider', function($compileProvider) {
+            // 配置圖片來源限制，只允許來自 angularjs.org 的圖片
+            $compileProvider.imgSrcSanitizationTrustedUrlList(/^https:\/\/angularjs\.org\//);
+        }])
+        .controller('TestController', ['$scope', '$timeout', function($scope, $timeout) {
+            $scope.maliciousUrl = 'https://malicious.example.com/evil.jpg';
+            $scope.trustedUrl = 'https://angularjs.org/img/logo.png';
+            $scope.complexSrcset = 'https://malicious.example.com/small.jpg 480w, https://angularjs.org/img/large.png 800w';
+            $scope.dataUrl = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0PkV2aWwgU1ZHPC90ZXh0Pjwvc3ZnPg==';
+            
+            $scope.getActualSrcset = function(elementType) {
+                $timeout(function() {
+                    var elements = document.querySelectorAll(elementType);
+                    var lastElement = elements[elements.length - 1];
+                    if (lastElement) {
+                        var srcset = lastElement.getAttribute('srcset');
+                        return srcset || '(無 srcset 屬性)';
+                    }
+                    return '(找不到元素)';
+                }, 0);
+                
+                // 返回一個佔位符，實際值會在下次 digest 週期中更新
+                return '(載入中...)';
+            };
+        }]);
+    </script>
+</body>
+</html>

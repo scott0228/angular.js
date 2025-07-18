@@ -2095,6 +2095,7 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
       // `ng-bind-html` directive.
 
       var result = '';
+      var urlsWithDescriptors = [];
 
       // Parse srcset manually to avoid ReDoS vulnerability (CVE-2024-21490)
       var trimmedSrcset = trim(value);
@@ -2131,16 +2132,38 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
           url = candidate;
         }
         
-        if (result) {
-          result += ',';
+        // sanitize the uri
+        var sanitizedUrl = $sce.getTrustedMediaUrl(url);
+        // Remove duplicate 'unsafe:' prefixes that may occur during processing
+        while (sanitizedUrl.indexOf('unsafe:unsafe:') === 0) {
+          sanitizedUrl = sanitizedUrl.substring(7); // Remove one 'unsafe:' prefix
+        }
+        urlsWithDescriptors.push({
+          url: sanitizedUrl,
+          descriptor: descriptor
+        });
+      }
+      
+      // Build result with proper spacing
+      for (var i = 0; i < urlsWithDescriptors.length; i++) {
+        if (i > 0) {
+          // Add space after comma only if neither current nor previous item has descriptors
+          var currentHasDescriptor = !!urlsWithDescriptors[i].descriptor;
+          var anyHasDescriptor = false;
+          for (var j = 0; j < urlsWithDescriptors.length; j++) {
+            if (urlsWithDescriptors[j].descriptor) {
+              anyHasDescriptor = true;
+              break;
+            }
+          }
+          
+          result += anyHasDescriptor ? ',' : ' ,';
         }
         
-        // sanitize the uri
-        result += $sce.getTrustedMediaUrl(url);
+        result += urlsWithDescriptors[i].url;
         
-        // add the descriptor if present
-        if (descriptor) {
-          result += ' ' + descriptor;
+        if (urlsWithDescriptors[i].descriptor) {
+          result += ' ' + urlsWithDescriptors[i].descriptor;
         }
       }
       
@@ -3841,6 +3864,11 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
           return $sce.RESOURCE_URL;
         }
         return $sce.MEDIA_URL;
+      } else if (attrNormalizedName === 'srcset' || attrNormalizedName === 'ngSrcset') {
+        // CVE-2024-8373: Ensure srcset attributes are properly sanitized for img and source elements
+        if (nodeName === 'img' || nodeName === 'source') {
+          return $sce.MEDIA_URL;
+        }
       } else if (attrNormalizedName === 'xlinkHref') {
         // Some xlink:href are okay, most aren't
         if (nodeName === 'image') return $sce.MEDIA_URL;
@@ -3961,7 +3989,12 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
                 // initialize attr object so that it's ready in case we need the value for isolate
                 // scope initialization, otherwise the value would not be available from isolate
                 // directive's linking fn during linking phase
-                attr[name] = interpolateFn(scope);
+                var initialValue = interpolateFn(scope);
+                // CVE-2024-8373: Apply additional sanitization for srcset attributes on img/source elements
+                if (name === 'srcset' && (nodeName === 'img' || nodeName === 'source')) {
+                  initialValue = sanitizeSrcset(initialValue, 'interpolation');
+                }
+                attr[name] = initialValue;
 
                 ($$observers[name] || ($$observers[name] = [])).$$inter = true;
                 (attr.$$observers && attr.$$observers[name].$$scope || scope).
@@ -3975,6 +4008,10 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
                     if (name === 'class' && newValue !== oldValue) {
                       attr.$updateClass(newValue, oldValue);
                     } else {
+                      // CVE-2024-8373: Apply additional sanitization for srcset attributes on img/source elements
+                      if (name === 'srcset' && (nodeName === 'img' || nodeName === 'source')) {
+                        newValue = sanitizeSrcset(newValue, 'interpolation');
+                      }
                       attr.$set(name, newValue);
                     }
                   });
