@@ -15,6 +15,8 @@
   },
   "scripts": {
     "commit": "git-cz",
+    "test": "grunt test",
+    "autotest": "grunt autotest",
     "test-i18n": "jasmine-node i18n/spec",
     "test-i18n-ucd": "jasmine-node i18n/ucd/spec"
   },
