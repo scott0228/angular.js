@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CVE-2024-8373 Test</title>
+    <script src="build/angular.js"></script>
+</head>
+<body ng-app="testApp" ng-controller="TestController">
+    <h2>CVE-2024-8373 修正測試</h2>
+    
+    <h3>修正前的行為 (不安全)</h3>
+    <p>惡意的 srcset 值應該被清理:</p>
+    
+    <h4>IMG 元素測試:</h4>
+    <img ng-attr-srcset="{{maliciousSrcset}}" alt="test image">
+    <p>實際 srcset 值: <span id="img-srcset-value"></span></p>
+    
+    <h4>SOURCE 元素測試:</h4>
+    <source ng-attr-srcset="{{maliciousSrcset}}" media="(min-width: 600px)">
+    <p>實際 srcset 值: <span id="source-srcset-value"></span></p>
+    
+    <h3>手動設置測試</h3>
+    <button ng-click="testSetAttribute()">測試 $set 方法</button>
+    <div id="test-results"></div>
+
+    <script>
+        angular.module('testApp', [])
+        .controller('TestController', function($scope, $element, $compile) {
+            $scope.maliciousSrcset = 'javascript:alert("XSS") 1x, data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg== 2x';
+            
+            $scope.testSetAttribute = function() {
+                try {
+                    // 測試 img 元素
+                    var imgElement = angular.element('<img>');
+                    var imgCompiled = $compile(imgElement)($scope);
+                    var imgAttrs = imgCompiled.scope().$parent.$eval('attr');
+                    
+                    // 測試 source 元素  
+                    var sourceElement = angular.element('<source>');
+                    var sourceCompiled = $compile(sourceElement)($scope);
+                    
+                    document.getElementById('test-results').innerHTML = 
+                        '<p>手動測試完成 - 檢查瀏覽器控制台是否有錯誤</p>';
+                } catch (e) {
+                    document.getElementById('test-results').innerHTML = 
+                        '<p style="color: red;">錯誤: ' + e.message + '</p>';
+                }
+            };
+            
+            // 檢查實際的 srcset 值
+            setTimeout(function() {
+                var imgElements = document.querySelectorAll('img[srcset]');
+                var sourceElements = document.querySelectorAll('source[srcset]');
+                
+                if (imgElements.length > 0) {
+                    document.getElementById('img-srcset-value').textContent = 
+                        imgElements[0].getAttribute('srcset') || '未設置';
+                }
+                
+                if (sourceElements.length > 0) {
+                    document.getElementById('source-srcset-value').textContent = 
+                        sourceElements[0].getAttribute('srcset') || '未設置';
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

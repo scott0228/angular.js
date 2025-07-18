@@ -4175,7 +4175,7 @@ describe('$compile', function() {
       beforeEach(function() {
         module(function() {
           // Create directives that capture the `attr` object
-          ['input', 'a', 'img'].forEach(function(tag) {
+          ['input', 'a', 'img', 'source'].forEach(function(tag) {
             directive(tag, valueFn({
               restrict: 'ECA',
               link: function(scope, element, attr) {
@@ -4290,6 +4290,21 @@ describe('$compile', function() {
       it('should not accept trusted values for img[srcset]', inject(function($compile, $rootScope, $sce) {
         var trusted = $sce.trustAsMediaUrl('trustme:foo()');
         element = $compile('<img></img>')($rootScope);
+        expect(function() {
+          $rootScope.attr.$set('srcset', trusted);
+        }).toThrowMinErr('$compile', 'srcset', 'Can\'t pass trusted values to `$set(\'srcset\', value)`: "trustme:foo()"');
+      }));
+
+      it('should automatically sanitize source[srcset]', inject(function($compile, $rootScope) {
+        element = $compile('<source></source>')($rootScope);
+        $rootScope.attr.$set('srcset', 'evil:foo()');
+        expect(element.attr('srcset')).toEqual('unsafe:evil:foo()');
+        expect($rootScope.attr.srcset).toEqual('unsafe:evil:foo()');
+      }));
+
+      it('should not accept trusted values for source[srcset]', inject(function($compile, $rootScope, $sce) {
+        var trusted = $sce.trustAsMediaUrl('trustme:foo()');
+        element = $compile('<source></source>')($rootScope);
         expect(function() {
           $rootScope.attr.$set('srcset', trusted);
         }).toThrowMinErr('$compile', 'srcset', 'Can\'t pass trusted values to `$set(\'srcset\', value)`: "trustme:foo()"');
