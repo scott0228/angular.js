@@ -2242,8 +2242,7 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
         var node = this.$$element[0],
             booleanKey = getBooleanAttrName(node, key),
             aliasedKey = getAliasedAttrName(key),
-            observer = key,
-            nodeName;
+            observer = key;
 
         if (booleanKey) {
           this.$$element.prop(key, value);
@@ -2265,10 +2264,9 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
           }
         }
 
-        nodeName = nodeName_(this.$$element);
-
-        // Sanitize img[srcset] + source[srcset] values.
-        if ((nodeName === 'img' || nodeName === 'source') && key === 'srcset') {
+        // CVE-2024-8372: Enhanced srcset sanitization for all elements that support srcset
+        // Sanitize srcset values for img, source, and any other elements that might support srcset
+        if (key === 'srcset') {
           this[key] = value = sanitizeSrcset(value, '$set(\'srcset\', value)');
         }
 
@@ -3863,8 +3861,9 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
       var trustedContext = getTrustedPropContext(nodeName, propName);
 
       var sanitizer = identity;
-      // Sanitize img[srcset] + source[srcset] values.
-      if (propName === 'srcset' && (nodeName === 'img' || nodeName === 'source')) {
+      // CVE-2024-8372: Enhanced srcset sanitization for property bindings
+      // Sanitize srcset values for any element that supports srcset property
+      if (propName === 'srcset') {
         sanitizer = sanitizeSrcsetPropertyValue;
       } else if (trustedContext) {
         sanitizer = $sce.getTrusted.bind($sce, trustedContext);
