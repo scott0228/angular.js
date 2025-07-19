@@ -299,6 +299,26 @@ function formatNumber(number, pattern, groupSep, decimalSep, fractionSize) {
       formattedText = '',
       parsedNumber;
 
+  // CVE-2022-25844: Limit the length of prefix/suffix to prevent ReDoS attacks
+  var MAX_PREFIX_SUFFIX_LENGTH = 100;
+  var posPre = (pattern.posPre || '').toString();
+  var posSuf = (pattern.posSuf || '').toString();
+  var negPre = (pattern.negPre || '').toString();
+  var negSuf = (pattern.negSuf || '').toString();
+  
+  if (posPre.length > MAX_PREFIX_SUFFIX_LENGTH) {
+    posPre = posPre.substring(0, MAX_PREFIX_SUFFIX_LENGTH);
+  }
+  if (posSuf.length > MAX_PREFIX_SUFFIX_LENGTH) {
+    posSuf = posSuf.substring(0, MAX_PREFIX_SUFFIX_LENGTH);
+  }
+  if (negPre.length > MAX_PREFIX_SUFFIX_LENGTH) {
+    negPre = negPre.substring(0, MAX_PREFIX_SUFFIX_LENGTH);
+  }
+  if (negSuf.length > MAX_PREFIX_SUFFIX_LENGTH) {
+    negSuf = negSuf.substring(0, MAX_PREFIX_SUFFIX_LENGTH);
+  }
+
   if (isInfinity) {
     formattedText = '\u221e';
   } else {
@@ -349,9 +369,9 @@ function formatNumber(number, pattern, groupSep, decimalSep, fractionSize) {
     }
   }
   if (number < 0 && !isZero) {
-    return pattern.negPre + formattedText + pattern.negSuf;
+    return negPre + formattedText + negSuf;
   } else {
-    return pattern.posPre + formattedText + pattern.posSuf;
+    return posPre + formattedText + posSuf;
   }
 }
 

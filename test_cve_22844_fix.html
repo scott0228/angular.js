@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CVE-2022-25844 ReDoS Fix Test</title>
+    <script src="build/angular.js"></script>
+</head>
+<body ng-app="testApp" ng-controller="TestController">
+    <h2>CVE-2022-25844 ReDoS 修正測試</h2>
+    
+    <p>這個測試驗證了對數字格式化 ReDoS 攻擊的修正。</p>
+    
+    <h3>正常數字格式化測試</h3>
+    <p>正常格式化: {{ normalNumber | number:2 }}</p>
+    <p>貨幣格式化: {{ normalNumber | currency }}</p>
+    
+    <h3>潛在 ReDoS 攻擊測試</h3>
+    <p>測試超長前綴/後綴...</p>
+    <button ng-click="testReDoSAttack()">執行 ReDoS 測試</button>
+    <div id="redos-results"></div>
+    
+    <h3>效能測試結果</h3>
+    <div id="performance-results"></div>
+
+    <script>
+        angular.module('testApp', [])
+        .controller('TestController', function($scope, $filter) {
+            $scope.normalNumber = 1234.56;
+            
+            $scope.testReDoSAttack = function() {
+                var resultsDiv = document.getElementById('redos-results');
+                var perfDiv = document.getElementById('performance-results');
+                
+                resultsDiv.innerHTML = '<p>測試進行中...</p>';
+                
+                // 保存原始的 locale 配置
+                var $locale = angular.injector(['ng']).get('$locale');
+                var originalPattern = angular.copy($locale.NUMBER_FORMATS.PATTERNS[1]);
+                
+                try {
+                    // 創建惡意的 locale 配置（模擬 CVE-2022-25844 攻擊）
+                    var maliciousPattern = angular.copy(originalPattern);
+                    maliciousPattern.posPre = ' '.repeat(500); // 嘗試創建超長前綴
+                    maliciousPattern.posSuf = ' '.repeat(500); // 嘗試創建超長後綴
+                    maliciousPattern.negPre = '- '.repeat(250); // 嘗試創建超長負數前綴
+                    maliciousPattern.negSuf = ' -'.repeat(250); // 嘗試創建超長負數後綴
+                    
+                    // 臨時替換 locale 配置
+                    $locale.NUMBER_FORMATS.PATTERNS[1] = maliciousPattern;
+                    
+                    var testCases = [
+                        { name: '正數測試', value: 123.45 },
+                        { name: '負數測試', value: -123.45 },
+                        { name: '大數測試', value: 1234567.89 }
+                    ];
+                    
+                    var results = [];
+                    
+                    testCases.forEach(function(testCase) {
+                        try {
+                            var startTime = performance.now();
+                            
+                            // 使用 currency filter 來觸發 formatNumber
+                            var result = $filter('currency')(testCase.value);
+                            
+                            var endTime = performance.now();
+                            var duration = endTime - startTime;
+                            
+                            results.push({
+                                name: testCase.name,
+                                duration: duration,
+                                success: true,
+                                result: result,
+                                resultLength: result.length
+                            });
+                            
+                        } catch (error) {
+                            results.push({
+                                name: testCase.name,
+                                duration: 'N/A',
+                                success: false,
+                                error: error.message
+                            });
+                        }
+                    });
+                    
+                    // 顯示結果
+                    var html = '<h4>測試結果:</h4><ul>';
+                    results.forEach(function(result) {
+                        var statusColor = result.success ? 'green' : 'red';
+                        var durationText = typeof result.duration === 'number' ? 
+                            result.duration.toFixed(2) + 'ms' : result.duration;
+                        
+                        html += '<li style="color: ' + statusColor + ';">';
+                        html += '<strong>' + result.name + '</strong>: ';
+                        html += result.success ? '成功' : '失敗';
+                        html += ' (耗時: ' + durationText + ')';
+                        
+                        if (result.success) {
+                            html += '<br>結果長度: ' + result.resultLength + ' 字符';
+                            html += '<br>格式化結果: ' + result.result.substring(0, 50) + '...';
+                        }
+                        
+                        if (result.error) {
+                            html += '<br>錯誤: ' + result.error;
+                        }
+                        html += '</li>';
+                    });
+                    html += '</ul>';
+                    
+                    resultsDiv.innerHTML = html;
+                    
+                    // 效能分析
+                    var avgDuration = results
+                        .filter(r => r.success && typeof r.duration === 'number')
+                        .reduce((sum, r) => sum + r.duration, 0) / results.length;
+                    
+                    var maxLength = Math.max(...results
+                        .filter(r => r.success)
+                        .map(r => r.resultLength));
+                    
+                    perfDiv.innerHTML = 
+                        '<h4>效能分析:</h4>' +
+                        '<p>平均處理時間: ' + avgDuration.toFixed(2) + 'ms</p>' +
+                        '<p>最大結果長度: ' + maxLength + ' 字符</p>' +
+                        '<p>狀態: ' + (avgDuration < 10 && maxLength < 250 ? 
+                            '<span style="color: green;">安全 - ReDoS 攻擊已被阻止</span>' : 
+                            '<span style="color: orange;">需要關注</span>') + '</p>' +
+                        '<p><strong>修正說明:</strong> 前綴/後綴長度已被限制在 100 字符以內，防止了 ReDoS 攻擊。</p>';
+                    
+                } finally {
+                    // 恢復原始的 locale 配置
+                    $locale.NUMBER_FORMATS.PATTERNS[1] = originalPattern;
+                }
+            };
+        });
+    </script>
+</body>
+</html>

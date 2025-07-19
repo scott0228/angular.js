@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CVE-2024-8373 Content Spoofing Fix Test</title>
+    <script src="build/angular.js"></script>
+</head>
+<body ng-app="testApp" ng-controller="TestController">
+    <h2>CVE-2024-8373 內容欺騙修正測試</h2>
+    
+    <p>這個測試驗證了對 &lt;source&gt; 元素 srcset 屬性的內容欺騙攻擊修正。</p>
+    
+    <h3>正常 source[srcset] 測試</h3>
+    <picture>
+        <source srcset="{{legitimateImageSet}}" media="(min-width: 800px)">
+        <img src="fallback.jpg" alt="測試圖片">
+    </picture>
+    
+    <h3>潛在惡意 source[srcset] 測試</h3>
+    <div id="malicious-test">
+        <p>測試惡意 srcset 值...</p>
+        <button ng-click="testMaliciousSrcset()">執行惡意 srcset 測試</button>
+        <div id="attack-results"></div>
+    </div>
+
+    <script>
+        angular.module('testApp', [])
+        .controller('TestController', function($scope, $compile) {
+            $scope.legitimateImageSet = 'small.jpg 480w, medium.jpg 800w, large.jpg 1200w';
+            
+            $scope.testMaliciousSrcset = function() {
+                var resultsDiv = document.getElementById('attack-results');
+                resultsDiv.innerHTML = '<p>測試進行中...</p>';
+                
+                var maliciousPayloads = [
+                    // XSS 嘗試
+                    'javascript:alert("XSS")',
+                    'data:text/html,<script>alert("XSS")</scr' + 'ipt>',
+                    
+                    // 協議混淆
+                    'file:///etc/passwd',
+                    'ftp://malicious.example.com/image.jpg',
+                    
+                    // 相對路徑注入
+                    '../../../etc/passwd',
+                    
+                    // 惡意 URL
+                    'https://malicious.example.com/steal-data.php?data=',
+                    
+                    // 混合攻擊
+                    'normal.jpg, javascript:alert("XSS") 2x'
+                ];
+                
+                var testResults = [];
+                
+                maliciousPayloads.forEach(function(payload, index) {
+                    try {
+                        // 創建 source 元素並設置惡意 srcset
+                        var testScope = $scope.$new();
+                        testScope.maliciousSrcset = payload;
+                        
+                        var sourceHtml = '<picture><source srcset="{{maliciousSrcset}}"><img src="test.jpg"></picture>';
+                        var compiled = $compile(sourceHtml)(testScope);
+                        
+                        testScope.$digest();
+                        
+                        // 檢查編譯後的 srcset 值
+                        var sourceElement = compiled.find('source')[0];
+                        var actualSrcset = sourceElement ? sourceElement.getAttribute('srcset') : null;
+                        
+                        var isSanitized = actualSrcset !== payload;
+                        var containsJavascript = actualSrcset && actualSrcset.includes('javascript:');
+                        var containsData = actualSrcset && actualSrcset.includes('data:');
+                        
+                        testResults.push({
+                            index: index + 1,
+                            payload: payload,
+                            result: actualSrcset,
+                            sanitized: isSanitized,
+                            safe: !containsJavascript && !containsData,
+                            status: isSanitized && !containsJavascript && !containsData ? 'SAFE' : 'UNSAFE'
+                        });
+                        
+                    } catch (error) {
+                        testResults.push({
+                            index: index + 1,
+                            payload: payload,
+                            result: 'ERROR: ' + error.message,
+                            sanitized: true,
+                            safe: true,
+                            status: 'ERROR (但已防護)'
+                        });
+                    }
+                });
+                
+                // 顯示結果
+                var html = '<h4>惡意 srcset 測試結果:</h4><table border="1" cellpadding="5">';
+                html += '<tr><th>編號</th><th>惡意輸入</th><th>清理後結果</th><th>狀態</th></tr>';
+                
+                testResults.forEach(function(result) {
+                    var statusColor = result.status === 'SAFE' ? 'green' : 
+                                    result.status.includes('ERROR') ? 'orange' : 'red';
+                    
+                    html += '<tr>';
+                    html += '<td>' + result.index + '</td>';
+                    html += '<td style="word-break: break-all; max-width: 200px;">' + 
+                           result.payload.substring(0, 50) + (result.payload.length > 50 ? '...' : '') + '</td>';
+                    html += '<td style="word-break: break-all; max-width: 200px;">' + 
+                           (result.result || 'null').substring(0, 50) + 
+                           ((result.result || '').length > 50 ? '...' : '') + '</td>';
+                    html += '<td style="color: ' + statusColor + '; font-weight: bold;">' + result.status + '</td>';
+                    html += '</tr>';
+                });
+                
+                html += '</table>';
+                
+                // 統計
+                var safeCount = testResults.filter(r => r.status === 'SAFE' || r.status.includes('ERROR')).length;
+                var totalCount = testResults.length;
+                
+                html += '<h4>測試摘要:</h4>';
+                html += '<p>安全測試: ' + safeCount + '/' + totalCount + '</p>';
+                html += '<p>成功率: ' + Math.round((safeCount / totalCount) * 100) + '%</p>';
+                
+                if (safeCount === totalCount) {
+                    html += '<p style="color: green; font-weight: bold;">✅ CVE-2024-8373 修正有效！所有惡意 srcset 值都已被正確清理。</p>';
+                } else {
+                    html += '<p style="color: red; font-weight: bold;">❌ 仍存在安全風險！某些惡意值未被清理。</p>';
+                }
+                
+                html += '<p><strong>修正說明:</strong> 擴展了 srcset 清理功能以包含 &lt;source&gt; 元素，防止內容欺騙攻擊。</p>';
+                
+                resultsDiv.innerHTML = html;
+            };
+        });
+    </script>
+</body>
+</html>

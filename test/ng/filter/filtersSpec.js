@@ -148,6 +148,42 @@ describe('filters', function() {
       num = formatNumber(879832749374983274928, pattern, ',', '.', 32);
       expect(num).toBe('879,832,749,374,983,200,000.00000000000000000000000000000000');
     });
+
+    it('should prevent ReDoS attacks by limiting prefix/suffix length (CVE-2022-25844)', function() {
+      var attackPattern = {
+        minInt: 1,
+        minFrac: 0,
+        maxFrac: 3,
+        posPre: ' '.repeat(200), // Attempt to create very long prefix
+        posSuf: ' '.repeat(200), // Attempt to create very long suffix
+        negPre: '- '.repeat(100), // Attempt to create very long negative prefix
+        negSuf: ' -'.repeat(100), // Attempt to create very long negative suffix
+        gSize: 3,
+        lgSize: 3
+      };
+
+      var startTime = Date.now();
+      
+      // Test positive number
+      var posResult = formatNumber(123, attackPattern, ',', '.', 2);
+      
+      // Test negative number
+      var negResult = formatNumber(-123, attackPattern, ',', '.', 2);
+      
+      var endTime = Date.now();
+      var duration = endTime - startTime;
+
+      // Should complete quickly (not hang due to ReDoS)
+      expect(duration).toBeLessThan(100);
+      
+      // Should limit prefix/suffix to reasonable length (100 characters max)
+      expect(posResult.length).toBeLessThan(250); // 100 prefix + 100 suffix + number
+      expect(negResult.length).toBeLessThan(250);
+      
+      // Should still contain the formatted number
+      expect(posResult).toContain('123.00');
+      expect(negResult).toContain('123.00');
+    });
   });
 
   describe('currency', function() {

@@ -130,10 +130,39 @@ var srcPattern = /(\s+\d+[xw]\s*,|\s+,|,\s+)/;
 
 4. **遷移計劃**: 考慮遷移到更新的 Angular 版本或其他現代前端框架。
 
+## CVE-2022-25844 Security Fix
+
+### 漏洞描述
+CVE-2022-25844 是 AngularJS 中數字格式化功能的正規表達式拒絕服務攻擊（ReDoS）漏洞。`formatNumber` 函數在處理包含極長前綴或後綴的格式化參數時，可能導致災難性回溯，造成應用程序掛起。
+
+### 漏洞詳情
+- **CVE ID**: CVE-2022-25844
+- **CVSS 評分**: 7.5 HIGH
+- **影響版本**: 所有 AngularJS 版本（包括 1.8.3 及更早版本）
+- **漏洞類型**: 不合理的計算複雜度 (CWE-407)
+
+### 受影響功能
+- `number` 過濾器
+- `currency` 過濾器
+- 所有使用 `formatNumber` 函數的自定義格式化程序
+
+### 修正措施
+1. 在 `formatNumber` 函數中添加 `MAX_PREFIX_SUFFIX_LENGTH = 100` 常數
+2. 限制格式化模式的前綴和後綴長度，防止過長字符串
+3. 使用 `substring(0, MAX_PREFIX_SUFFIX_LENGTH)` 截斷超長值
+4. 添加專門的 ReDoS 測試案例
+
+### 測試方法
+運行 `test_cve_22844_fix.html` 頁面測試修正效果，或使用以下命令：
+```bash
+npx grunt test:unit --grep="formatNumber.*ReDoS"
+```
+
 ## 相關資源
 
 - [CVE-2024-8373 詳情](https://nvd.nist.gov/vuln/detail/CVE-2024-8373)
 - [CVE-2024-21490 詳情](https://nvd.nist.gov/vuln/detail/CVE-2024-21490)
+- [CVE-2022-25844 詳情](https://nvd.nist.gov/vuln/detail/CVE-2022-25844)
 - [StackBlitz ReDoS 演示](https://stackblitz.com/edit/angularjs-vulnerability-ng-srcset-redos)
 - [AngularJS 支援狀態](https://docs.angularjs.org/misc/version-support-status)
 - [HeroDevs 漏洞目錄](https://www.herodevs.com/vulnerability-directory/cve-2024-8373)
