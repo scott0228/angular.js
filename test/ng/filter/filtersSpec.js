@@ -163,23 +163,23 @@ describe('filters', function() {
       };
 
       var startTime = Date.now();
-      
+
       // Test positive number
       var posResult = formatNumber(123, attackPattern, ',', '.', 2);
-      
+
       // Test negative number
       var negResult = formatNumber(-123, attackPattern, ',', '.', 2);
-      
+
       var endTime = Date.now();
       var duration = endTime - startTime;
 
       // Should complete quickly (not hang due to ReDoS)
       expect(duration).toBeLessThan(100);
-      
+
       // Should limit prefix/suffix to reasonable length (100 characters max)
       expect(posResult.length).toBeLessThan(250); // 100 prefix + 100 suffix + number
       expect(negResult.length).toBeLessThan(250);
-      
+
       // Should still contain the formatted number
       expect(posResult).toContain('123.00');
       expect(negResult).toContain('123.00');

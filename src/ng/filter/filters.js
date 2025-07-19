@@ -305,7 +305,7 @@ function formatNumber(number, pattern, groupSep, decimalSep, fractionSize) {
   var posSuf = (pattern.posSuf || '').toString();
   var negPre = (pattern.negPre || '').toString();
   var negSuf = (pattern.negSuf || '').toString();
-  
+
   if (posPre.length > MAX_PREFIX_SUFFIX_LENGTH) {
     posPre = posPre.substring(0, MAX_PREFIX_SUFFIX_LENGTH);
   }
