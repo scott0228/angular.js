@@ -26,6 +26,6 @@ config.capabilities = {
 config.directConnect = true;
 
 // 指定 ChromeDriver 路徑
-config.chromeDriver = './node_modules/webdriver-manager/selenium/chromedriver_138.0.7204.157';
+config.chromeDriver = './node_modules/webdriver-manager/selenium/chromedriver_138.0.7204.157.exe';
 
 exports.config = config;
