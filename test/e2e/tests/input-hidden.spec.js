@@ -11,7 +11,7 @@ describe('hidden thingy', function() {
 
     loadFixture('sample');
     browser.driver.executeScript('history.back()');
-    var expectedValue = browser.params.browser === 'safari' ? '{{ 7 * 6 }}' : '';
+    var expectedValue = browser.params.browser !== 'safari' ? '{{ 7 * 6 }}' : '';
     expect(element(by.css('input')).getAttribute('value')).toEqual(expectedValue);
   });
 
