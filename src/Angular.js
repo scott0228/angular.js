@@ -999,7 +999,19 @@ function copy(source, destination, maxDepth) {
         return new source.constructor(source.valueOf());
 
       case '[object RegExp]':
-        var re = new RegExp(source.source, source.toString().match(/[^/]*$/)[0]);
+        // CVE-2023-26116 FIX: Replace vulnerable regex /[^/]*$/ to prevent ReDoS attacks
+        // The original regex could cause catastrophic backtracking with malicious input
+        // Solution: Extract flags directly from RegExp properties instead of parsing toString()
+        var flags = '';
+        if (source.global) flags += 'g';
+        if (source.ignoreCase) flags += 'i';
+        if (source.multiline) flags += 'm';
+        // Handle additional flags if they exist on the source RegExp
+        if (source.sticky && typeof source.sticky === 'boolean') flags += 'y';
+        if (source.unicode && typeof source.unicode === 'boolean') flags += 'u';
+        if (source.dotAll && typeof source.dotAll === 'boolean') flags += 's';
+
+        var re = new RegExp(source.source, flags);
         re.lastIndex = source.lastIndex;
         return re;
 

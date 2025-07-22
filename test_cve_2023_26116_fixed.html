@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CVE-2023-26116 Fix Verification</title>
+    <script src="build/angular.js"></script>
+</head>
+<body ng-app="testApp" ng-controller="TestController">
+    <h2>CVE-2023-26116 ReDoS Fix Verification</h2>
+    
+    <div id="test-results">
+        <p><strong>Testing the fixed angular.copy() function...</strong></p>
+        
+        <h3>Test Status:</h3>
+        <div id="status-output" style="padding: 10px; margin: 10px 0; border: 1px solid #ccc;">
+            Testing in progress...
+        </div>
+        
+        <h3>Functional Tests:</h3>
+        <div id="functional-output" style="font-family: monospace; font-size: 12px;"></div>
+        
+        <h3>Security Tests:</h3>
+        <div id="security-output" style="font-family: monospace; font-size: 12px;"></div>
+        
+        <h3>Performance Tests:</h3>
+        <div id="performance-output" style="font-family: monospace; font-size: 12px;"></div>
+    </div>
+
+    <script>
+        angular.module('testApp', [])
+        .controller('TestController', ['$scope', function($scope) {
+            
+            function log(elementId, message) {
+                var element = document.getElementById(elementId);
+                element.innerHTML += message + '<br>';
+                console.log(message);
+            }
+            
+            function setStatus(message, type) {
+                var statusElement = document.getElementById('status-output');
+                statusElement.innerHTML = '<strong>' + message + '</strong>';
+                
+                if (type === 'success') {
+                    statusElement.style.backgroundColor = '#e8f5e8';
+                    statusElement.style.borderColor = '#4caf50';
+                    statusElement.style.color = '#2e7d32';
+                } else if (type === 'error') {
+                    statusElement.style.backgroundColor = '#ffebee';
+                    statusElement.style.borderColor = '#f44336';
+                    statusElement.style.color = '#c62828';
+                } else {
+                    statusElement.style.backgroundColor = '#fff3e0';
+                    statusElement.style.borderColor = '#ff9800';
+                    statusElement.style.color = '#ef6c00';
+                }
+            }
+            
+            function testFunctionalCorrectness() {
+                log('functional-output', '=== Functional Correctness Tests ===');
+                
+                var testCases = [
+                    { regex: /test/g, desc: 'Global flag' },
+                    { regex: /test/i, desc: 'IgnoreCase flag' },
+                    { regex: /test/m, desc: 'Multiline flag' },
+                    { regex: /test/gi, desc: 'Global + IgnoreCase' },
+                    { regex: /test/gim, desc: 'Multiple flags' },
+                    { regex: /test/, desc: 'No flags' },
+                    { regex: /complex[a-z0-9]+/gim, desc: 'Complex pattern with flags' }
+                ];
+                
+                var passed = 0;
+                var total = testCases.length;
+                
+                testCases.forEach(function(testCase, index) {
+                    try {
+                        var original = testCase.regex;
+                        original.lastIndex = index * 3;
+                        
+                        var start = performance.now();
+                        var copied = angular.copy(original);
+                        var duration = performance.now() - start;
+                        
+                        if (copied instanceof RegExp &&
+                            copied.source === original.source &&
+                            copied.flags === original.flags &&
+                            copied.lastIndex === original.lastIndex &&
+                            copied !== original) {
+                            
+                            log('functional-output', '✅ ' + testCase.desc + ' - PASSED (' + duration.toFixed(2) + 'ms)');
+                            log('functional-output', '   Source: /' + copied.source + '/' + copied.flags + ', LastIndex: ' + copied.lastIndex);
+                            passed++;
+                        } else {
+                            log('functional-output', '❌ ' + testCase.desc + ' - FAILED');
+                            log('functional-output', '   Expected: /' + original.source + '/' + original.flags + ', LastIndex: ' + original.lastIndex);
+                            log('functional-output', '   Got: /' + (copied ? copied.source : 'undefined') + '/' + (copied ? copied.flags : 'undefined') + ', LastIndex: ' + (copied ? copied.lastIndex : 'undefined'));
+                        }
+                    } catch (error) {
+                        log('functional-output', '❌ ' + testCase.desc + ' - ERROR: ' + error.message);
+                    }
+                });
+                
+                log('functional-output', '');
+                log('functional-output', 'Functional Tests: ' + passed + '/' + total + ' passed');
+                return passed === total;
+            }
+            
+            function testReDoSSecurity() {
+                log('security-output', '=== ReDoS Security Tests ===');
+                
+                var attackCases = [
+                    {
+                        name: 'Malicious toString() - Long suffix',
+                        create: function() {
+                            var regex = new RegExp('attack1');
+                            regex.toString = function() {
+                                return '/attack1/' + 'a'.repeat(10000);
+                            };
+                            return regex;
+                        }
+                    },
+                    {
+                        name: 'Malicious toString() - Mixed pattern',
+                        create: function() {
+                            var regex = new RegExp('attack2', 'gi');
+                            regex.toString = function() {
+                                return '/attack2/flags' + 'xyz'.repeat(20000);
+                            };
+                            return regex;
+                        }
+                    },
+                    {
+                        name: 'Malicious toString() - No end slash',
+                        create: function() {
+                            var regex = new RegExp('attack3');
+                            regex.toString = function() {
+                                return '/attack3' + 'b'.repeat(30000) + 'c';
+                            };
+                            return regex;
+                        }
+                    }
+                ];
+                
+                var allSecure = true;
+                
+                attackCases.forEach(function(attackCase) {
+                    try {
+                        log('security-output', 'Testing: ' + attackCase.name);
+                        
+                        var maliciousRegex = attackCase.create();
+                        
+                        var start = performance.now();
+                        var copied = angular.copy(maliciousRegex);
+                        var duration = performance.now() - start;
+                        
+                        log('security-output', '  Duration: ' + duration.toFixed(2) + 'ms');
+                        
+                        if (duration > 100) {
+                            log('security-output', '  ⚠️ SLOW - Potential ReDoS issue');
+                            allSecure = false;
+                        } else {
+                            log('security-output', '  ✅ SECURE - Fast processing');
+                        }
+                        
+                        // Verify the copy still works correctly (uses original properties)
+                        if (copied instanceof RegExp &&
+                            copied.source === maliciousRegex.source) {
+                            log('security-output', '  ✅ Correct copy behavior');
+                        } else {
+                            log('security-output', '  ❌ Incorrect copy behavior');
+                        }
+                        
+                    } catch (error) {
+                        log('security-output', '  ❌ ERROR: ' + error.message);
+                        allSecure = false;
+                    }
+                    
+                    log('security-output', '');
+                });
+                
+                return allSecure;
+            }
+            
+            function testComplexObjects() {
+                log('performance-output', '=== Complex Object Tests ===');
+                
+                var complexObject = {
+                    name: 'test',
+                    patterns: [
+                        /pattern1/g,
+                        /pattern2/i,
+                        /pattern3/m
+                    ],
+                    nested: {
+                        regex: /nested[0-9]+/gi,
+                        data: {
+                            innerRegex: /inner.*/
+                        }
+                    },
+                    mixedArray: [
+                        'string',
+                        123,
+                        /array[a-z]+/gim,
+                        { prop: /prop.*/ }
+                    ]
+                };
+                
+                try {
+                    var start = performance.now();
+                    var copied = angular.copy(complexObject);
+                    var duration = performance.now() - start;
+                    
+                    log('performance-output', 'Complex object copy duration: ' + duration.toFixed(2) + 'ms');
+                    
+                    // Verify deep copying
+                    var allCorrect = true;
+                    
+                    if (!(copied.patterns[0] instanceof RegExp) ||
+                        copied.patterns[0].flags !== 'g' ||
+                        copied.patterns[0] === complexObject.patterns[0]) {
+                        allCorrect = false;
+                        log('performance-output', '❌ Array RegExp copy failed');
+                    }
+                    
+                    if (!(copied.nested.regex instanceof RegExp) ||
+                        copied.nested.regex.flags !== 'gi' ||
+                        copied.nested.regex === complexObject.nested.regex) {
+                        allCorrect = false;
+                        log('performance-output', '❌ Nested RegExp copy failed');
+                    }
+                    
+                    if (!(copied.mixedArray[2] instanceof RegExp) ||
+                        copied.mixedArray[2].flags !== 'gim' ||
+                        copied.mixedArray[2] === complexObject.mixedArray[2]) {
+                        allCorrect = false;
+                        log('performance-output', '❌ Mixed array RegExp copy failed');
+                    }
+                    
+                    if (allCorrect) {
+                        log('performance-output', '✅ Complex object deep copy successful');
+                        return true;
+                    } else {
+                        log('performance-output', '❌ Complex object deep copy failed');
+                        return false;
+                    }
+                    
+                } catch (error) {
+                    log('performance-output', '❌ Complex object test error: ' + error.message);
+                    return false;
+                }
+            }
+            
+            // Run all tests
+            function runAllTests() {
+                log('functional-output', 'Starting CVE-2023-26116 fix verification tests...');
+                log('security-output', '');
+                log('performance-output', '');
+                
+                var functionalResults = testFunctionalCorrectness();
+                var securityResults = testReDoSSecurity();
+                var complexResults = testComplexObjects();
+                
+                // Summary
+                if (functionalResults && securityResults && complexResults) {
+                    setStatus('🎉 ALL TESTS PASSED - CVE-2023-26116 SUCCESSFULLY FIXED!', 'success');
+                    log('performance-output', '');
+                    log('performance-output', '=== SUMMARY ===');
+                    log('performance-output', '✅ Functional correctness: PASSED');
+                    log('performance-output', '✅ ReDoS security: SECURED');
+                    log('performance-output', '✅ Complex objects: WORKING');
+                    log('performance-output', '✅ Performance: ACCEPTABLE');
+                    log('performance-output', '');
+                    log('performance-output', '🔒 The ReDoS vulnerability has been successfully mitigated');
+                    log('performance-output', '🚀 All AngularJS functionality preserved');
+                } else {
+                    setStatus('❌ SOME TESTS FAILED - Fix needs review', 'error');
+                    log('performance-output', '');
+                    log('performance-output', '=== SUMMARY ===');
+                    log('performance-output', (functionalResults ? '✅' : '❌') + ' Functional correctness: ' + (functionalResults ? 'PASSED' : 'FAILED'));
+                    log('performance-output', (securityResults ? '✅' : '❌') + ' ReDoS security: ' + (securityResults ? 'SECURED' : 'VULNERABLE'));
+                    log('performance-output', (complexResults ? '✅' : '❌') + ' Complex objects: ' + (complexResults ? 'WORKING' : 'BROKEN'));
+                }
+            }
+            
+            // Run tests after a short delay
+            setTimeout(runAllTests, 500);
+        }]);
+    </script>
+</body>
+</html>

@@ -1,6 +1,19 @@
 # AngularJS Security Vulnerabilities Fixes
 
-本專案已修復四個關鍵的 AngularJS 安全漏洞：
+本專案已修復五個關鍵的 AngularJS 安全漏洞：
+
+## CVE-2023-26116: ReDoS in angular.copy() Function  
+**狀態**: ✅ 修復完成  
+**嚴重性**: MEDIUM (5.3)  
+**影響**: 透過惡意 RegExp 對象觸發 angular.copy() 中的 ReDoS 攻擊
+
+**修復內容**:
+- 移除易受攻擊的正規表達式 `/[^/]*$/`
+- 改用直接從 RegExp 對象屬性提取標誌的安全方法
+- 完全消除災難性回溯的可能性
+- 維持完整的向後相容性
+
+**測試**: 包含功能性、安全性和性能測試，確保修復有效且不影響現有功能
 
 ## CVE-2024-8373: Content Spoofing in source[srcset] Attribute
 **狀態**: ✅ 修復完成  
