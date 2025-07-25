@@ -29,17 +29,17 @@ This branch contains multiple CVE fixes requiring **security review** for change
 開發測試使用 docker 環境進行打包測試
 ```bash
 docker build -t angularjs-dev .
-docker run -it --rm -v $(pwd):/app angularjs-dev yarn install --frozen-lockfile
+docker run -it --rm -v $(pwd):/app angularjs-dev npx yarn install --frozen-lockfile
 
 ```
 
 ```bash
-yarn install                    # Install dependencies (Yarn required, not npm)
-grunt package                   # Full build → creates build/ directory
-grunt test                      # Complete test suite (unit + e2e)
-grunt autotest                  # Watch mode testing
-grunt webserver                 # Dev server on localhost:8000
-grunt eslint                    # Code linting
+npx yarn install                    # Install dependencies (Yarn required, not npm)
+npx grunt package                   # Full build → creates build/ directory
+npx grunt test                      # Complete test suite (unit + e2e)
+npx grunt autotest                  # Watch mode testing
+npx grunt webserver                 # Dev server on localhost:8000
+npx grunt eslint                    # Code linting
 # Targeted testing
 npx karma start karma-jqlite.conf.js --single-run --browsers=ChromeHeadless
 ```

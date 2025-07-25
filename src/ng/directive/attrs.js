@@ -433,6 +433,7 @@ forEach(['src', 'srcset', 'href'], function(attrName) {
             return;
           }
 
+
           attr.$set(name, value);
 
           // Support: IE 9-11 only
@@ -446,3 +447,4 @@ forEach(['src', 'srcset', 'href'], function(attrName) {
     };
   }];
 });
+

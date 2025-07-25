@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker run:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:nvd.nist.gov)",
+      "Bash(docker build:*)",
+      "Bash(rm:*)",
+      "Bash(node:*)"
+    ],
+    "deny": []
+  }
+}

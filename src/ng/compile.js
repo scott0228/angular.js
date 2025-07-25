@@ -2096,10 +2096,12 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
 
       var result = '';
 
-      // first check if there are spaces because it's not the same pattern
+      // CVE-2024-8372 fix: Improve regex to handle invalid descriptors
+      // The original regex failed to properly split srcset values with invalid descriptors
+      // like "url xyz,url2" which would bypass sanitization
       var trimmedSrcset = trim(value);
-      //                (   999x   ,|   999w   ,|   ,|,   )
-      var srcPattern = /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+)/;
+      //                (   999x   ,|   999w   ,|   ,|,   |  any_word  ,)
+      var srcPattern = /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+|\s+\w+\s*,)/;
       var pattern = /\s/.test(trimmedSrcset) ? srcPattern : /(,)/;
 
       // split srcset into tuple of uri and descriptor except for the last item
