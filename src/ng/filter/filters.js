@@ -69,7 +69,8 @@ function currencyFilter($locale) {
     }
 
     // If the currency symbol is empty, trim whitespace around the symbol
-    var currencySymbolRe = !currencySymbol ? /\s*\u00A4\s*/g : /\u00A4/g;
+    // CVE-2022-25844 fix: Limit whitespace matching to prevent ReDoS
+    var currencySymbolRe = !currencySymbol ? /\s{0,50}\u00A4\s{0,50}/g : /\u00A4/g;
 
     // if null or undefined pass it through
     return (amount == null)

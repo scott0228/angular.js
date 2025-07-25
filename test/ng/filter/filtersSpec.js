@@ -199,6 +199,54 @@ describe('filters', function() {
         expect(currency(-1.07, '')).toBe('  --  1.07  --  ');
       })
     );
+
+    // CVE-2022-25844: ReDoS vulnerability test
+    it('should handle ReDoS vulnerability in currency symbol regex (CVE-2022-25844)',
+      inject(function($locale) {
+        var pattern = $locale.NUMBER_FORMATS.PATTERNS[1];
+
+        // Save original patterns for restoration
+        var originalPosPre = pattern.posPre;
+        var originalPosSuf = pattern.posSuf;
+        var originalNegPre = pattern.negPre;
+        var originalNegSuf = pattern.negSuf;
+
+        try {
+          // Test case 1: Normal pattern with spaces around currency symbol
+          pattern.posPre = '   \u00A4   ';
+          pattern.posSuf = '';
+          pattern.negPre = '-   \u00A4   ';
+          pattern.negSuf = '';
+
+          var startTime = Date.now();
+          var result = currency(100, '', 2); // Empty currency symbol triggers the vulnerable regex
+          var endTime = Date.now();
+
+          expect(result).toBe('100.00');
+          expect(endTime - startTime).toBeLessThan(100); // Should complete quickly (less than 100ms)
+
+          // Test case 2: Pathological input that could trigger ReDoS
+          // Create a pattern with many spaces that could cause catastrophic backtracking
+          var manySpaces = Array(1000).join(' ');
+          pattern.posPre = manySpaces + '\u00A4' + manySpaces;
+          pattern.posSuf = '';
+
+          startTime = Date.now();
+          result = currency(100, '', 2); // This triggers the vulnerable regex /\s*\u00A4\s*/g
+          endTime = Date.now();
+
+          // Before fix, this could take extremely long time due to ReDoS
+          expect(endTime - startTime).toBeLessThan(1000); // Should not hang (less than 1 second)
+
+        } finally {
+          // Restore original patterns
+          pattern.posPre = originalPosPre;
+          pattern.posSuf = originalPosSuf;
+          pattern.negPre = originalNegPre;
+          pattern.negSuf = originalNegSuf;
+        }
+      })
+    );
   });
 
   describe('number', function() {
