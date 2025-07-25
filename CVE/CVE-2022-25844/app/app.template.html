@@ -1,0 +1,59 @@
+<main layout="column">
+  <h1 class="md-headline">AngularJS $filter Currency ReDos Demo</h1>
+  <section md-whiteframe="1" class="md-padding">
+    <md-input-container>
+      <label>Currency Symbol</label>
+      <input name="symbol" ng-model="$ctrl.currencySymbol" ng-trim="false" />
+    </md-input-container>
+    <md-input-container>
+      <label>Amount</label>
+      <input name="amount" ng-model="$ctrl.amount" ng-trim="false" />
+    </md-input-container>
+    <md-input-container>
+      <label>
+        Locale Service
+        <pre style="display: inline; font-weight: bold">posPre</pre>
+        Value
+      </label>
+      <input
+        name="posPre"
+        ng-model="$ctrl.posPre"
+        ng-change="$ctrl.onPosPreChange()"
+        ng-trim="false"
+      />
+    </md-input-container>
+    <br />
+    <span style="font-weight: bold">Output: </span>
+    {{ $ctrl.amount | currency : $ctrl.currencySymbol }}
+    <br />
+    <br />
+    <md-divider></md-divider>
+    <br />
+    <div>
+      <div class="md-title" style="margin-bottom: 4px">WARNING</div>
+      Clicking the <span style="font-style: italic">ReDos Now</span> button
+      will:
+      <ul>
+        <li>
+          Set the
+          <span style="font-style: italic">Currency Symbol</span>
+          input to an empty string
+        </li>
+        <li>
+          Set the
+          <span style="font-style: italic">
+            Locale Service
+            <pre style="display: inline; font-weight: bold">posPre</pre>
+            Value
+          </span>
+          input to 1,000,0000 whitespace characters
+        </li>
+      </ul>
+      <span style="font-weight: bold">THIS WILL FREEZE THE WINDOW</span>
+    </div>
+    <br />
+    <md-button ng-click="$ctrl.onReDos()" class="md-raised md-primary">
+      ReDos Now
+    </md-button>
+  </section>
+</main>

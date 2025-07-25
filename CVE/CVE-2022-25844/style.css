@@ -1,0 +1,10 @@
+app-component {
+  display: block;
+  height: 100%;
+}
+app-component main {
+  height: 100%;
+}
+app-component section {
+  min-height: 200px;
+}
