@@ -1,6 +1,8 @@
 # 使用官方 Node.js 14 作為基礎映像
 # docker build --platform linux/amd64 -t angularjs-test-env .
-# docker run --rm angularjs-test-env npx karma start karma-jqlite.conf.js --single-run 
+# docker run -v ./:/app/ --platform linux/amd64 --rm angularjs-test-env npx yarn install --frozen-lockfile
+# docker run -v ./:/app/ --platform linux/amd64 --rm angularjs-test-env npx karma start karma-jqlite.conf.js --single-run 
+# docker run -v ./:/app/ --platform linux/amd64 --rm angularjs-test-env npx grunt test
 FROM node:14-bullseye
 
 # 安裝 Google Chrome 及必要的相依套件
@@ -10,7 +12,11 @@ RUN apt-get update && apt-get install -y wget gnupg \
     && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
     && apt-get update \
     # 安裝 Chrome 以及在無頭 (headless) 環境中執行所需的函式庫
-    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst --no-install-recommends \
+    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst openjdk-11-jdk --no-install-recommends \
+    && wget -O /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/138.0.7204.168/linux64/chromedriver-linux64.zip \
+    && unzip /tmp/chromedriver.zip -d /tmp/ \
+    && mv /tmp/chromedriver-linux64/chromedriver /usr/bin/chromedriver \
+    && rm -rf /tmp/chromedriver.zip /tmp/chromedriver-linux64 \
     && rm -rf /var/lib/apt/lists/*
 
 # 設定工作目錄
