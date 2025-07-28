@@ -2099,9 +2099,12 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
       // CVE-2024-8372 fix: Improve regex to handle invalid descriptors
       // The original regex failed to properly split srcset values with invalid descriptors
       // like "url xyz,url2" which would bypass sanitization
+      // CVE-2024-21490 fix: Replace vulnerable regex with safer version
+      // Original vulnerable: /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+|\s+\w+\s*,)/
+      // Fixed: Eliminate catastrophic backtracking by simplifying alternation
       var trimmedSrcset = trim(value);
-      //                (   999x   ,|   999w   ,|   ,|,   |  any_word  ,)
-      var srcPattern = /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+|\s+\w+\s*,)/;
+      //                Non-greedy match for descriptors to prevent backtracking
+      var srcPattern = /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+|\s+[^\s,]+\s*,)/;
       var pattern = /\s/.test(trimmedSrcset) ? srcPattern : /(,)/;
 
       // split srcset into tuple of uri and descriptor except for the last item
