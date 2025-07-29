@@ -423,7 +423,17 @@ forEach(['src', 'srcset', 'href'], function(attrName) {
 
         // We need to sanitize the url at least once, in case it is a constant
         // non-interpolated attribute.
-        attr.$set(normalized, $sce.getTrustedMediaUrl(attr[normalized]));
+        // CVE-2024-8373 fix: Handle quoted string literals by evaluating them first
+        var attrValue = attr[normalized];
+        // If the value is a quoted string literal, evaluate it
+        if (typeof attrValue === 'string' && attrValue.match(/^'.*'$|^".*"$/)) {
+          try {
+            attrValue = scope.$eval(attrValue);
+          } catch (e) {
+            // If evaluation fails, use the original value
+          }
+        }
+        attr.$set(normalized, $sce.getTrustedMediaUrl(attrValue));
 
         attr.$observe(normalized, function(value) {
           if (!value) {

@@ -2103,32 +2103,62 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
       // Original vulnerable: /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+|\s+\w+\s*,)/
       // Fixed: Eliminate catastrophic backtracking by simplifying alternation
       var trimmedSrcset = trim(value);
-      //                Non-greedy match for descriptors to prevent backtracking
-      var srcPattern = /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+|\s+[^\s,]+\s*,)/;
-      var pattern = /\s/.test(trimmedSrcset) ? srcPattern : /(,)/;
 
-      // split srcset into tuple of uri and descriptor except for the last item
-      var rawUris = trimmedSrcset.split(pattern);
-
-      // for each tuples
-      var nbrUrisWith2parts = Math.floor(rawUris.length / 2);
-      for (var i = 0; i < nbrUrisWith2parts; i++) {
-        var innerIdx = i * 2;
-        // sanitize the uri
-        result += $sce.getTrustedMediaUrl(trim(rawUris[innerIdx]));
-        // add the descriptor
-        result += ' ' + trim(rawUris[innerIdx + 1]);
+      // CVE-2024-8373 fix: Handle data URLs properly to avoid incorrect comma splitting
+      // Data URLs can contain commas that are not srcset separators
+      var rawUris;
+      if (trimmedSrcset.indexOf('data:') === 0 && trimmedSrcset.indexOf(',') !== -1) {
+        // Single data URL - don't split on comma
+        rawUris = [trimmedSrcset];
+      } else {
+        //                Non-greedy match for descriptors to prevent backtracking
+        var srcPattern = /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+|\s+[^\s,]+\s*,)/;
+        var pattern = /\s/.test(trimmedSrcset) ? srcPattern : /(,)/;
+        // split srcset into tuple of uri and descriptor except for the last item
+        rawUris = trimmedSrcset.split(pattern);
       }
 
-      // split the last item into uri and descriptor
-      var lastTuple = trim(rawUris[i * 2]).split(/\s/);
+      // CVE-2024-8373 fix: Handle single data URL case
+      if (rawUris.length === 1) {
+        // Single URL (likely a data URL) - sanitize as-is
+        result = $sce.getTrustedMediaUrl(trim(rawUris[0]));
+      } else {
+        // Multiple URLs - process as srcset with descriptors
+        // for each tuples
+        var nbrUrisWith2parts = Math.floor(rawUris.length / 2);
+        for (var i = 0; i < nbrUrisWith2parts; i++) {
+          var innerIdx = i * 2;
+          // sanitize the uri
+          result += $sce.getTrustedMediaUrl(trim(rawUris[innerIdx]));
+          // add the descriptor, preserving original spacing
+          var descriptor = rawUris[innerIdx + 1];
+          // Only trim leading space if present, preserve trailing space and comma
+          if (descriptor.charAt(0) === ' ') {
+            result += descriptor;
+          } else {
+            result += ' ' + descriptor;
+          }
+        }
 
-      // sanitize the last uri
-      result += $sce.getTrustedMediaUrl(trim(lastTuple[0]));
+        // handle the last item if there's one remaining
+        if (i * 2 < rawUris.length) {
+          // split the last item into uri and descriptor
+          var lastTuple = trim(rawUris[i * 2]).split(/\s/);
 
-      // and add the last descriptor if any
-      if (lastTuple.length === 2) {
-        result += (' ' + trim(lastTuple[1]));
+          // sanitize the last uri - don't add extra space if result ends with comma or space
+          var lastUrl = $sce.getTrustedMediaUrl(trim(lastTuple[0]));
+          var lastChar = result.charAt(result.length - 1);
+          if (lastChar === ',' || lastChar === ' ') {
+            result += lastUrl;
+          } else {
+            result += ' ' + lastUrl;
+          }
+
+          // and add the last descriptor if any
+          if (lastTuple.length === 2) {
+            result += (' ' + trim(lastTuple[1]));
+          }
+        }
       }
       return result;
     }
@@ -2270,8 +2300,19 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
         nodeName = nodeName_(this.$$element);
 
         // Sanitize img[srcset] + source[srcset] values.
+        // CVE-2024-8373 fix: Avoid double sanitization while ensuring proper sanitization for srcsets
         if ((nodeName === 'img' || nodeName === 'source') && key === 'srcset') {
-          this[key] = value = sanitizeSrcset(value, '$set(\'srcset\', value)');
+          var hasNgSrcset = this.ngSrcset !== undefined;
+          var alreadySanitized = typeof value === 'string' && value.indexOf('unsafe:') === 0;
+          // Skip sanitization only if:
+          // 1. ngSrcset directive is present AND value is already sanitized (single URL case)
+          // 2. This prevents double sanitization for single URLs while allowing srcset sanitization
+          if (hasNgSrcset && alreadySanitized) {
+            // Already sanitized by ngSrcset, skip additional sanitization
+          } else {
+            // Apply sanitization for ngAttrSrcset, regular interpolation, and multi-URL ngSrcset cases
+            this[key] = value = sanitizeSrcset(value, '$set(\'srcset\', value)');
+          }
         }
 
         if (writeAttr !== false) {
