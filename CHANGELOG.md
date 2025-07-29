@@ -4,6 +4,12 @@ and [read the end of life announcement](https://goo.gle/angularjs-end-of-life).*
 
 **Visit [angular.io](https://angular.io) for the actively supported Angular.**
 
+<a name="1.8.4"></a>
+# 1.8.4 security-patch (2025-07-29)
+
+## Security Fixes
+- Fixed multiple security vulnerabilities including CVE issues
+
 <a name="1.8.3"></a>
 # 1.8.3 ultimate-farewell (2022-04-07)
 
