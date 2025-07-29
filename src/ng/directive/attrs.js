@@ -414,8 +414,11 @@ forEach(['src', 'srcset', 'href'], function(attrName) {
         var propName = attrName,
             name = attrName;
 
+        // CVE-2025-0716 fix: Only redirect to xlink:href for SVG elements that are NOT <image> elements
+        // SVG <image> elements should use href attribute and have image source sanitization applied
         if (attrName === 'href' &&
-            toString.call(element.prop('href')) === '[object SVGAnimatedString]') {
+            toString.call(element.prop('href')) === '[object SVGAnimatedString]' &&
+            element[0].nodeName.toLowerCase() !== 'image') {
           name = 'xlinkHref';
           attr.$attr[name] = 'xlink:href';
           propName = null;

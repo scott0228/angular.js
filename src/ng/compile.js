@@ -2035,9 +2035,9 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
 
   this.$get = [
             '$injector', '$interpolate', '$exceptionHandler', '$templateRequest', '$parse',
-            '$controller', '$rootScope', '$sce', '$animate',
+            '$controller', '$rootScope', '$sce', '$animate', '$$sanitizeUri',
     function($injector,   $interpolate,   $exceptionHandler,   $templateRequest,   $parse,
-             $controller,   $rootScope,   $sce,   $animate) {
+             $controller,   $rootScope,   $sce,   $animate,   $$sanitizeUri) {
 
     var SIMPLE_ATTR_NAME = /^\w/;
     var specialAttrHolder = window.document.createElement('div');
@@ -2312,6 +2312,16 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
           } else {
             // Apply sanitization for ngAttrSrcset, regular interpolation, and multi-URL ngSrcset cases
             this[key] = value = sanitizeSrcset(value, '$set(\'srcset\', value)');
+          }
+        }
+        // CVE-2025-0716 fix: Sanitize SVG image[href] values.
+        // Apply image source sanitization for SVG <image> elements when href is set via ng-attr-href or interpolation
+        if (nodeName === 'image' && key === 'href') {
+          var imageAlreadySanitized = typeof value === 'string' && value.indexOf('unsafe:') === 0;
+          // Apply sanitization only if not already sanitized
+          // This ensures proper sanitization for ng-attr-href and interpolation cases while preventing double sanitization
+          if (!imageAlreadySanitized) {
+            this[key] = value = $$sanitizeUri(value, true);
           }
         }
 
